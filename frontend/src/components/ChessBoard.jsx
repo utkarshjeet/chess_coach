@@ -3,14 +3,12 @@ import { Chess } from "chess.js";
 
 const game = new Chess();
 
-
 while (!game.isGameOver()) {
     const moves = game.moves()
     const move = moves[Math.floor(Math.random() * moves.length)]
     game.move(move)
 }
 console.log(game.pgn())
-
 
 
 function ChessBoard() {

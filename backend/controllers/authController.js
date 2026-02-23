@@ -38,5 +38,40 @@ async function logout(req, res) {
     }
 }
 
-export { register, login, logout };
+async function getUser(req, res) {
+    try {
+        const { username } = req.params;
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
 
+async function updateProfile(req, res) {
+    try {
+        const { username } = req.params;
+        const { profilePicture, country } = req.body;
+        const updateData = {};
+        if (profilePicture !== undefined) updateData.profilePicture = profilePicture;
+        if (country !== undefined) updateData.country = country;
+
+        const user = await User.findOneAndUpdate(
+            { username },
+            { $set: updateData },
+            { new: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(user);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+export { register, login, logout, getUser, updateProfile };

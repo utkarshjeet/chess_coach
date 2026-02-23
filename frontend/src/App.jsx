@@ -5,6 +5,7 @@ import Register from './pages/register';
 
 import Dashboard from "./pages/Dashboard";
 import Game from "./pages/Game";
+import Settings from "./pages/Settings";
 
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/play/:mode" element={<Game />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </Router>
   );

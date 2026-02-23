@@ -5,13 +5,24 @@ import { useNavigate } from 'react-router-dom';
 export default function Dashboard() {
     const navigate = useNavigate();
     const [username, setUsername] = useState('User');
+    const [userData, setUserData] = useState(null);
 
     useEffect(() => {
         const storedUsername = localStorage.getItem('username');
         if (storedUsername) {
             setUsername(storedUsername);
+            fetch(`/api/auth/user/${storedUsername}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && !data.message) {
+                        setUserData(data);
+                    }
+                })
+                .catch(err => console.error("Error fetching user data:", err));
+        } else {
+            navigate('/login');
         }
-    }, []);
+    }, [navigate]);
 
     const handleLogout = () => {
         localStorage.removeItem('username');
@@ -40,15 +51,19 @@ export default function Dashboard() {
                         <BookOpen size={20} style={{ minWidth: '20px' }} />
                         <span style={{ marginLeft: '1rem' }}>Learn</span>
                     </a>
-                    <a href="#" className="nav-item">
+                    <a href="#" onClick={(e) => { e.preventDefault(); navigate('/settings'); }} className="nav-item">
                         <Settings size={20} style={{ minWidth: '20px' }} />
                         <span style={{ marginLeft: '1rem' }}>Settings</span>
                     </a>
                 </nav>
 
                 <div className="sidebar-footer" onClick={handleLogout}>
-                    <div className="user-avatar" style={{ minWidth: '40px' }}>
-                        {username.charAt(0).toUpperCase()}
+                    <div className="user-avatar" style={{ minWidth: '40px', overflow: 'hidden' }}>
+                        {userData?.profilePicture ? (
+                            <img src={userData.profilePicture} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            username.charAt(0).toUpperCase()
+                        )}
                     </div>
                     <div style={{ flex: 1, overflow: 'hidden', marginLeft: '1rem' }}>
                         <div style={{ fontWeight: '700', fontSize: '1rem' }}>{username}</div>
@@ -61,12 +76,18 @@ export default function Dashboard() {
             {/* Main Content */}
             <main className="main-content">
                 <div className="dashboard-profile-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '6px', backgroundColor: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', fontWeight: 'bold' }}>
-                        {username.charAt(0).toUpperCase()}
-                    </div>
+                    {userData?.profilePicture ? (
+                        <img src={userData.profilePicture} alt="Profile" style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }} />
+                    ) : (
+                        <div style={{ width: '48px', height: '48px', borderRadius: '6px', backgroundColor: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', fontWeight: 'bold' }}>
+                            {username.charAt(0).toUpperCase()}
+                        </div>
+                    )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0 }}>{username}</h2>
-                        <span style={{ fontSize: '1.2rem' }}>🇮🇳</span>
+                        {userData?.country && (
+                            <span style={{ fontSize: '1.2rem', color: 'var(--text-secondary)' }}>{userData.country}</span>
+                        )}
                     </div>
                 </div>
 
@@ -172,28 +193,28 @@ export default function Dashboard() {
                                         <Swords size={18} color="var(--text-secondary)" />
                                         Rapid
                                     </span>
-                                    <span className="stat-value">1245 <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)' }}>▴</span></span>
+                                    <span className="stat-value"> {userData ? userData.rapid : 1200} <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)' }}>▴</span></span>
                                 </div>
                                 <div className="stat-row">
                                     <span className="stat-label">
                                         <Flame size={18} color="var(--text-secondary)" />
                                         Blitz
                                     </span>
-                                    <span className="stat-value">1150</span>
+                                    <span className="stat-value"> {userData ? userData.blitz : 1200} <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)' }}>▴</span></span>
                                 </div>
                                 <div className="stat-row">
                                     <span className="stat-label">
                                         <Play size={18} color="var(--text-secondary)" />
                                         Bullet
                                     </span>
-                                    <span className="stat-value">1020 <span style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>▾</span></span>
+                                    <span className="stat-value"> {userData ? userData.bullet : 1200} <span style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>▾</span></span>
                                 </div>
                                 <div className="stat-row">
                                     <span className="stat-label">
                                         <Puzzle size={18} color="var(--text-secondary)" />
                                         Puzzles
                                     </span>
-                                    <span className="stat-value">1650</span>
+                                    <span className="stat-value"> {userData ? userData.puzzles || 0 : 0} <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)' }}>▴</span></span>
                                 </div>
                             </div>
                         </div>
