@@ -30,6 +30,15 @@ body {
     min-height: 100vh;
 }
 
+/* React Chessboard Overrides to Prevent Touch Scroll Warnings */
+[data-chessboard] * {
+    touch-action: none !important;
+}
+
+div[style*="touch-action: none"] {
+    touch-action: none !important;
+}
+
 /* Typography styles */
 h1,
 h2,
