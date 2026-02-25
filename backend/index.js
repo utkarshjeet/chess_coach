@@ -4,12 +4,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 import mongoose from 'mongoose';
 import userRoutes from "./routes/authRoutes.js";
+import stockfishRoutes from "./routes/stockfishRoutes.js";
+import gameRoutes from "./routes/gameRoutes.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use("/api/auth", userRoutes);
+app.use("/api/stockfish", stockfishRoutes);
+app.use("/api/games", gameRoutes);
 
 
 mongoose

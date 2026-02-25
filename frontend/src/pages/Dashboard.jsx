@@ -6,6 +6,7 @@ export default function Dashboard() {
     const navigate = useNavigate();
     const [username, setUsername] = useState('User');
     const [userData, setUserData] = useState(null);
+    const [games, setGames] = useState([]);
 
     useEffect(() => {
         const storedUsername = localStorage.getItem('username');
@@ -19,6 +20,13 @@ export default function Dashboard() {
                     }
                 })
                 .catch(err => console.error("Error fetching user data:", err));
+
+            fetch(`http://localhost:5000/api/games/history/${storedUsername}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) setGames(data);
+                })
+                .catch(err => console.error("Error fetching games:", err));
         } else {
             navigate('/login');
         }
@@ -129,53 +137,47 @@ export default function Dashboard() {
                             </div>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div className="action-card" style={{ marginBottom: 0, padding: '1rem' }}>
-                                    <div className="action-icon" style={{ width: '48px', height: '48px', backgroundColor: 'var(--bg-primary)' }}>
-                                        <Swords size={24} color="var(--accent-green)" />
-                                    </div>
-                                    <div className="action-info" style={{ flex: 1 }}>
-                                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span style={{ width: '10px', height: '10px', backgroundColor: 'var(--accent-green)', display: 'inline-block' }}></span>
-                                            vs Computer (Level 5)
-                                        </h4>
-                                        <p style={{ margin: 0, fontSize: '0.85rem', marginTop: '0.25rem' }}>Win • 32 moves • 10 min ago</p>
-                                    </div>
-                                    <div className="result-badge" style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(129, 182, 76, 0.2)', color: 'var(--accent-green)', fontWeight: 'bold', borderRadius: '4px' }}>
-                                        +1
-                                    </div>
-                                </div>
+                                {games.length === 0 ? (
+                                    <p style={{ color: "var(--text-muted)", textAlign: "center", fontStyle: "italic", padding: "1rem" }}>
+                                        No recent matches found. Start a game!
+                                    </p>
+                                ) : (
+                                    games.map((game) => {
+                                        const isWin = game.result === "Win";
+                                        const isDraw = game.result === "Draw";
+                                        const resultColor = isWin ? "var(--accent-green)" : (isDraw ? "#f5c643" : "var(--danger)");
+                                        const bgColor = isWin ? "rgba(129, 182, 76, 0.2)" : (isDraw ? "rgba(245, 198, 67, 0.2)" : "rgba(250, 70, 33, 0.2)");
+                                        const resultText = isWin ? "+1" : (isDraw ? "½" : "-1");
+                                        const dateLabel = new Date(game.createdAt).toLocaleDateString();
 
-                                <div className="action-card" style={{ marginBottom: 0, padding: '1rem' }}>
-                                    <div className="action-icon" style={{ width: '48px', height: '48px', backgroundColor: 'var(--bg-primary)' }}>
-                                        <Swords size={24} color="var(--danger)" />
-                                    </div>
-                                    <div className="action-info" style={{ flex: 1 }}>
-                                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span style={{ width: '10px', height: '10px', backgroundColor: 'var(--danger)', display: 'inline-block' }}></span>
-                                            vs master_chess
-                                        </h4>
-                                        <p style={{ margin: 0, fontSize: '0.85rem', marginTop: '0.25rem' }}>Loss • 45 moves • 2 hours ago</p>
-                                    </div>
-                                    <div className="result-badge" style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(250, 70, 33, 0.2)', color: 'var(--danger)', fontWeight: 'bold', borderRadius: '4px' }}>
-                                        -1
-                                    </div>
-                                </div>
-
-                                <div className="action-card" style={{ marginBottom: 0, padding: '1rem' }}>
-                                    <div className="action-icon" style={{ width: '48px', height: '48px', backgroundColor: 'var(--bg-primary)' }}>
-                                        <Swords size={24} color="var(--accent-green)" />
-                                    </div>
-                                    <div className="action-info" style={{ flex: 1 }}>
-                                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span style={{ width: '10px', height: '10px', backgroundColor: 'var(--accent-green)', display: 'inline-block' }}></span>
-                                            vs shadow_knight
-                                        </h4>
-                                        <p style={{ margin: 0, fontSize: '0.85rem', marginTop: '0.25rem' }}>Win • 28 moves • Yesterday</p>
-                                    </div>
-                                    <div className="result-badge" style={{ padding: '0.5rem 0.75rem', backgroundColor: 'rgba(129, 182, 76, 0.2)', color: 'var(--accent-green)', fontWeight: 'bold', borderRadius: '4px' }}>
-                                        +1
-                                    </div>
-                                </div>
+                                        return (
+                                            <div
+                                                key={game._id}
+                                                onClick={() => navigate(`/history/${game._id}`)}
+                                                className="action-card"
+                                                style={{ marginBottom: 0, padding: '1rem', cursor: 'pointer', transition: 'background-color 0.2s' }}
+                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'}
+                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'}
+                                            >
+                                                <div className="action-icon" style={{ width: '48px', height: '48px', backgroundColor: 'var(--bg-primary)' }}>
+                                                    <Swords size={24} color={resultColor} />
+                                                </div>
+                                                <div className="action-info" style={{ flex: 1 }}>
+                                                    <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <span style={{ width: '10px', height: '10px', backgroundColor: resultColor, display: 'inline-block' }}></span>
+                                                        vs {game.opponent}
+                                                    </h4>
+                                                    <p style={{ margin: 0, fontSize: '0.85rem', marginTop: '0.25rem', color: "var(--text-secondary)" }}>
+                                                        {game.result} • {game.movesCount} moves • {dateLabel}
+                                                    </p>
+                                                </div>
+                                                <div className="result-badge" style={{ padding: '0.5rem 0.75rem', backgroundColor: bgColor, color: resultColor, fontWeight: 'bold', borderRadius: '4px' }}>
+                                                    {resultText}
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     </div>
