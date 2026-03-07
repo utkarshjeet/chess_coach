@@ -1,9 +1,17 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { io } from "socket.io-client";
+
+let socket;
 
 function TypeGame({ mode, isHistory = false, gameId = null }) {
+    const location = useLocation();
+    const onlineGameData = location.state?.gameData;
+    const onlineGameId = onlineGameData?.gameId;
+
+    const navigate = useNavigate();
     // create a chess game using a ref to always have access to the latest game state within closures and maintain the game state across renders
     const chessGameRef = useRef(new Chess());
     const chessGame = chessGameRef.current;
@@ -19,7 +27,36 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     // Bot states
     const [isBotThinking, setIsBotThinking] = useState(false);
     const [botDepth, setBotDepth] = useState(10);
-    const [playerColor, setPlayerColor] = useState(['bot', 'coach'].includes(mode) ? null : 'w');
+    const [playerColor, setPlayerColor] = useState(() => {
+        if (mode === 'online' && onlineGameData) {
+            const username = localStorage.getItem('username');
+            return onlineGameData.players.white === username ? 'w' : 'b';
+        }
+        return ['bot', 'coach'].includes(mode) ? null : 'w';
+    });
+
+    // Socket.io for Online Play
+    useEffect(() => {
+        if (mode === 'online' && onlineGameId) {
+            socket = io();
+
+            socket.emit('join-game', onlineGameId);
+
+            socket.on('opponent-move', (move) => {
+                try {
+                    chessGame.move(move);
+                    setChessPosition(chessGame.fen());
+                    setMoveHistory(chessGame.history());
+                } catch (e) {
+                    console.error("Opponent move error:", e);
+                }
+            });
+
+            return () => {
+                if (socket) socket.disconnect();
+            };
+        }
+    }, [mode, onlineGameId]);
     const [hint, setHint] = useState(null);
     const [isHintLoading, setIsHintLoading] = useState(false);
 
@@ -94,7 +131,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     // Fetch the game if we are in History Mode
     useEffect(() => {
         if (isHistory && gameId) {
-            fetch(`http://localhost:5000/api/games/history/game/${gameId}`)
+            fetch(`/api/games/history/game/${gameId}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.pgn) {
@@ -135,7 +172,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
         if (!username) return;
 
         try {
-            await fetch("http://localhost:5000/api/games/save", {
+            await fetch("/api/games/save", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -169,7 +206,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
         if (isGameOver || isBotThinking || isHistory || isViewingHistory) return;
         setIsHintLoading(true);
         try {
-            const response = await fetch("http://localhost:5000/api/stockfish/get-move", {
+            const response = await fetch("/api/stockfish/get-move", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fen: chessGame.fen(), depth: 15 })
@@ -253,7 +290,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
             const fenBefore = chessPosition;
             const fenAfter = chessGameRef.current.fen();
             try {
-                const analyzeRes = await fetch("http://localhost:5000/api/stockfish/analyze-move", {
+                const analyzeRes = await fetch("/api/stockfish/analyze-move", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ fenBefore, fenAfter, depth: botDepth })
@@ -270,7 +307,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
             }
         }
         try {
-            const response = await fetch("http://localhost:5000/api/stockfish/get-move", {
+            const response = await fetch("/api/stockfish/get-move", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fen: chessGameRef.current.fen(), depth: botDepth })
@@ -385,7 +422,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
 
         // Clicked own piece to start moving
         if (!moveFrom && pieceAtClick) {
-            if (['bot', 'coach'].includes(mode) && playerColor && pieceAtClick.color !== playerColor) return;
+            if (['bot', 'coach', 'online'].includes(mode) && playerColor && pieceAtClick.color !== playerColor) return;
             const hasMoveOptions = getMoveOptions(square);
             if (hasMoveOptions) setMoveFrom(square);
             return;
@@ -418,9 +455,19 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
         }
 
         // Successful click move
+        const moveData = {
+            from: moveFrom,
+            to: square,
+            promotion: 'q'
+        };
+
         setChessPosition(chessGame.fen());
         setMoveFrom('');
         setOptionSquares({});
+
+        if (mode === 'online' && onlineGameId) {
+            socket.emit('move', { gameId: onlineGameId, move: moveData });
+        }
 
         if (['bot', 'coach'].includes(mode)) {
             setTimeout(makeBotMove, 300);
@@ -444,20 +491,25 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
         if (pieceObj && pieceObj.color !== chessGame.turn()) {
             return false;
         }
-        if (['bot', 'coach'].includes(mode) && playerColor && pieceObj.color !== playerColor) {
+        if (['bot', 'coach', 'online'].includes(mode) && playerColor && pieceObj.color !== playerColor) {
             return false;
         }
 
         try {
-            chessGame.move({
+            const moveData = {
                 from: sourceSquare,
                 to: targetSquare,
                 promotion: 'q'
-            });
+            };
+            chessGame.move(moveData);
 
             setChessPosition(chessGame.fen());
             setMoveFrom('');
             setOptionSquares({});
+
+            if (mode === 'online' && onlineGameId) {
+                socket.emit('move', { gameId: onlineGameId, move: moveData });
+            }
 
             if (['bot', 'coach'].includes(mode)) {
                 setTimeout(makeBotMove, 500);
@@ -468,8 +520,6 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
             return false;
         }
     }
-
-    const navigate = useNavigate();
 
     const chessboardOptions = {
         onPieceDrop,

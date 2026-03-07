@@ -1,17 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Play, BookOpen, Puzzle, Users, Tv, Settings, LogOut, Swords, Flame, History } from 'lucide-react';
+import { Target, Play, BookOpen, Puzzle, Users, Tv, Settings, LogOut, Swords, Flame, History, X, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
+
+let socket; // Define globally or use useRef to keep it across renders
 
 export default function Dashboard() {
     const navigate = useNavigate();
     const [username, setUsername] = useState('User');
     const [userData, setUserData] = useState(null);
     const [games, setGames] = useState([]);
+    const [challenge, setChallenge] = useState(null); // { from, global }
+    const [isSearching, setIsSearching] = useState(false);
 
     useEffect(() => {
         const storedUsername = localStorage.getItem('username');
         if (storedUsername) {
             setUsername(storedUsername);
+
+            // Connect to Socket.io
+            socket = io(); // Proxy takes care of URL
+
+            socket.on('connect', () => {
+                socket.emit('register', storedUsername);
+            });
+
+            socket.on('new-challenge', (data) => {
+                setChallenge(data);
+            });
+
+            socket.on('game-started', (data) => {
+                // Redirect to the online play page
+                navigate(`/play/online/${data.gameId}`, { state: { gameData: data } });
+            });
+
             fetch(`/api/auth/user/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {
@@ -21,12 +43,16 @@ export default function Dashboard() {
                 })
                 .catch(err => console.error("Error fetching user data:", err));
 
-            fetch(`http://localhost:5000/api/games/history/${storedUsername}`)
+            fetch(`/api/games/history/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {
                     if (Array.isArray(data)) setGames(data);
                 })
                 .catch(err => console.error("Error fetching games:", err));
+
+            return () => {
+                if (socket) socket.disconnect();
+            };
         } else {
             navigate('/login');
         }
@@ -35,6 +61,21 @@ export default function Dashboard() {
     const handleLogout = () => {
         localStorage.removeItem('username');
         navigate('/login');
+    };
+
+    const sendGlobalChallenge = () => {
+        setIsSearching(true);
+        socket.emit('send-challenge', { from: username, to: null });
+        setTimeout(() => setIsSearching(false), 30000);
+    };
+
+    const acceptChallenge = () => {
+        socket.emit('accept-challenge', { from: challenge.from, to: username });
+        setChallenge(null);
+    };
+
+    const declineChallenge = () => {
+        setChallenge(null);
     };
 
     return (
@@ -120,11 +161,12 @@ export default function Dashboard() {
                             </div>
                             Play Bots
                         </button>
-                        <button onClick={() => navigate("/play/friend")} className="quick-action-btn">
-                            <div className="icon-wrapper" style={{ color: '#d8aa71' }}>
+                        <button onClick={sendGlobalChallenge} className="quick-action-btn" disabled={isSearching}>
+                            <div className="icon-wrapper" style={{ color: '#d8aa71', position: 'relative' }}>
                                 <Users size={24} />
+                                {isSearching && <div className="searching-ping"></div>}
                             </div>
-                            Play a Friend
+                            {isSearching ? 'Searching...' : 'Play a Friend'}
                         </button>
                     </div>
 
@@ -233,6 +275,26 @@ export default function Dashboard() {
                     </div>
                 </div>
             </main>
+            {/* Challenge Modal */}
+            {challenge && (
+                <div className="challenge-modal-overlay">
+                    <div className="challenge-modal">
+                        <div className="challenge-icon">
+                            <Swords size={32} color="var(--accent-green)" />
+                        </div>
+                        <h3>Game Challenge!</h3>
+                        <p><strong>{challenge.from}</strong> has challenged you to a game.</p>
+                        <div className="challenge-actions">
+                            <button onClick={acceptChallenge} className="btn-accept">
+                                <Check size={20} /> Accept
+                            </button>
+                            <button onClick={declineChallenge} className="btn-decline">
+                                <X size={20} /> Decline
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
