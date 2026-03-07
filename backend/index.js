@@ -1,4 +1,6 @@
 import express from 'express';
+import http from "http";
+import { Server } from "socket.io";
 import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -18,7 +20,17 @@ const io = new Server(httpServer, {
   }
 });
 
-app.use(cors());
+const server = http.createServer(app);
+const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173";
+
+const io = new Server(server, {
+  cors: {
+    origin: frontendURL,
+    methods: ["GET", "POST"],
+  },
+});
+
+app.use(cors({ origin: frontendURL }));
 app.use(express.json());
 app.use("/api/auth", userRoutes);
 app.use("/api/stockfish", stockfishRoutes);

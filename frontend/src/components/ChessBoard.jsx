@@ -12,6 +12,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     const onlineGameId = onlineGameData?.gameId;
 
     const navigate = useNavigate();
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
     // create a chess game using a ref to always have access to the latest game state within closures and maintain the game state across renders
     const chessGameRef = useRef(new Chess());
     const chessGame = chessGameRef.current;
@@ -132,6 +133,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     useEffect(() => {
         if (isHistory && gameId) {
             fetch(`/api/games/history/game/${gameId}`)
+            fetch(`${API_URL}/api/games/history/game/${gameId}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && data.pgn) {
@@ -143,6 +145,9 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
                         setMoveHistory(chessGame.history());
                         setGameStatus(`Analysis Mode - Result: ${data.result}`);
                         setAnalysisOpponent(data.opponent);
+                        if (data.userColor) {
+                            setPlayerColor(data.userColor);
+                        }
                         setIsGameOver(true); // Disable play automatically in analysis
                     }
                 })
@@ -173,10 +178,12 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
 
         try {
             await fetch("/api/games/save", {
+            await fetch(`${API_URL}/api/games/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     username,
+                    userColor: playerColor || 'w',
                     opponent: ['bot', 'coach'].includes(mode) ? `Computer (Level ${botDepth})` : mode,
                     mode,
                     result: finalResult,
@@ -206,7 +213,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
         if (isGameOver || isBotThinking || isHistory || isViewingHistory) return;
         setIsHintLoading(true);
         try {
-            const response = await fetch("/api/stockfish/get-move", {
+            const response = await fetch(`${API_URL}/api/stockfish/get-move`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fen: chessGame.fen(), depth: 15 })
@@ -238,9 +245,13 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
 
     function updateGameStatus() {
         if (chessGame.isCheckmate()) {
-            setGameStatus(`Checkmate! ${chessGame.turn() === 'w' ? 'Black' : 'White'} wins!`);
+            const winnerColor = chessGame.turn() === 'w' ? 'b' : 'w';
+            const winnerName = winnerColor === 'w' ? 'White' : 'Black';
+            setGameStatus(`Checkmate! ${winnerName} wins!`);
             setIsGameOver(true);
-            saveGameToDB(chessGame.turn() === 'w' ? 'Loss' : 'Win');
+
+            const pColor = playerColor || 'w';
+            saveGameToDB(winnerColor === pColor ? 'Win' : 'Loss');
         } else if (chessGame.isDraw() || chessGame.isStalemate() || chessGame.isThreefoldRepetition() || chessGame.isInsufficientMaterial()) {
             setGameStatus("Game Over: Draw");
             setIsGameOver(true);
@@ -290,7 +301,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
             const fenBefore = chessPosition;
             const fenAfter = chessGameRef.current.fen();
             try {
-                const analyzeRes = await fetch("/api/stockfish/analyze-move", {
+                const analyzeRes = await fetch(`${API_URL}/api/stockfish/analyze-move`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ fenBefore, fenAfter, depth: botDepth })
@@ -307,7 +318,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
             }
         }
         try {
-            const response = await fetch("/api/stockfish/get-move", {
+            const response = await fetch(`${API_URL}/api/stockfish/get-move`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fen: chessGameRef.current.fen(), depth: botDepth })
@@ -577,9 +588,16 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     } else if (gameStatus === "Resigned") {
         popupResult = "You Lost";
         popupReason = "by resignation";
-    } else if (gameStatus.includes("Black wins!")) {
-        popupResult = "You Lost";
-        popupReason = "by checkmate";
+    } else if (gameStatus.includes("wins!")) {
+        const pColor = playerColor || 'w';
+        const winnerName = pColor === 'w' ? 'White' : 'Black';
+        if (gameStatus.includes(`${winnerName} wins!`)) {
+            popupResult = "You Won!";
+            popupReason = "by checkmate";
+        } else {
+            popupResult = "You Lost";
+            popupReason = "by checkmate";
+        }
     }
 
     return (

@@ -8,12 +8,13 @@ export default function Settings() {
     const [profilePicture, setProfilePicture] = useState('');
     const [country, setCountry] = useState('');
     const [message, setMessage] = useState('');
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
     useEffect(() => {
         const storedUsername = localStorage.getItem('username');
         if (storedUsername) {
             setUsername(storedUsername);
-            fetch(`/api/auth/user/${storedUsername}`)
+            fetch(`${API_URL}/api/auth/user/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && !data.message) {
@@ -33,7 +34,7 @@ export default function Settings() {
     };
 
     const handleSave = () => {
-        fetch(`/api/auth/user/${username}`, {
+        fetch(`${API_URL}/api/auth/user/${username}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
