@@ -8,11 +8,13 @@ export default function Dashboard() {
     const [userData, setUserData] = useState(null);
     const [games, setGames] = useState([]);
 
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
     useEffect(() => {
         const storedUsername = localStorage.getItem('username');
         if (storedUsername) {
             setUsername(storedUsername);
-            fetch(`/api/auth/user/${storedUsername}`)
+            fetch(`${API_URL}/api/auth/user/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && !data.message) {
@@ -21,7 +23,7 @@ export default function Dashboard() {
                 })
                 .catch(err => console.error("Error fetching user data:", err));
 
-            fetch(`http://localhost:5000/api/games/history/${storedUsername}`)
+            fetch(`${API_URL}/api/games/history/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {
                     if (Array.isArray(data)) setGames(data);

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const gameSchema = new mongoose.Schema({
     username: { type: String, required: true },
+    userColor: { type: String, default: 'w' },
     opponent: { type: String, required: true },
     mode: { type: String, required: true },
     result: { type: String, required: true },

@@ -1,4 +1,6 @@
 import express from 'express';
+import http from "http";
+import { Server } from "socket.io";
 import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -9,7 +11,17 @@ import gameRoutes from "./routes/gameRoutes.js";
 
 const app = express();
 
-app.use(cors());
+const server = http.createServer(app);
+const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173";
+
+const io = new Server(server, {
+  cors: {
+    origin: frontendURL,
+    methods: ["GET", "POST"],
+  },
+});
+
+app.use(cors({ origin: frontendURL }));
 app.use(express.json());
 app.use("/api/auth", userRoutes);
 app.use("/api/stockfish", stockfishRoutes);
@@ -28,7 +40,7 @@ mongoose
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
