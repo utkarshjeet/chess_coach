@@ -21,7 +21,7 @@ export default function Dashboard() {
             setUsername(storedUsername);
 
             // Connect to Socket.io
-            socket = io(); // Proxy takes care of URL
+            socket = io(API_URL); // Using API_URL for explicit connection
 
             socket.on('connect', () => {
                 socket.emit('register', storedUsername);
@@ -36,7 +36,6 @@ export default function Dashboard() {
                 navigate(`/play/online/${data.gameId}`, { state: { gameData: data } });
             });
 
-            fetch(`/api/auth/user/${storedUsername}`)
             fetch(`${API_URL}/api/auth/user/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {
@@ -46,7 +45,6 @@ export default function Dashboard() {
                 })
                 .catch(err => console.error("Error fetching user data:", err));
 
-            fetch(`/api/games/history/${storedUsername}`)
             fetch(`${API_URL}/api/games/history/${storedUsername}`)
                 .then(res => res.json())
                 .then(data => {

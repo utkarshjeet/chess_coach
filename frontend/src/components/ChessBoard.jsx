@@ -39,7 +39,7 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     // Socket.io for Online Play
     useEffect(() => {
         if (mode === 'online' && onlineGameId) {
-            socket = io();
+            socket = io(API_URL);
 
             socket.emit('join-game', onlineGameId);
 
@@ -132,7 +132,6 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
     // Fetch the game if we are in History Mode
     useEffect(() => {
         if (isHistory && gameId) {
-            fetch(`/api/games/history/game/${gameId}`)
             fetch(`${API_URL}/api/games/history/game/${gameId}`)
                 .then(res => res.json())
                 .then(data => {
@@ -177,7 +176,6 @@ function TypeGame({ mode, isHistory = false, gameId = null }) {
         if (!username) return;
 
         try {
-            await fetch("/api/games/save", {
             await fetch(`${API_URL}/api/games/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
